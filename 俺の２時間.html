@@ -1,0 +1,283 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>SART Experiment + Survey</title>
+<style>
+body { font-family: Arial; text-align: center; background: #f5f5f5; margin-top: 40px; }
+#number { font-size: 120px; font-weight: bold; margin: 40px; }
+button { padding: 12px 25px; font-size: 20px; }
+.hidden { display: none; }
+.question { margin: 15px 0; text-align: left; display: inline-block; }
+#summary { margin-top: 20px; font-size: 18px; }
+</style>
+</head>
+<body>
+
+
+<h1>SART（Sustained Attention to Response Task）</h1>
+
+
+<div id="sart">
+  <div id="number">---</div>
+  <button id="startBtn">開始する</button>
+</div>
+
+
+<div id="survey" class="hidden">
+  <h2>アンケート</h2>
+  <form id="survey-form">
+    <div class="question">
+      <label>あなたの嗅いだかおりは何番目のものですか</label><br>
+      <select name="odor_number" required>
+        <option value="">選択してください</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>
+    </div>
+
+
+    <div class="question">
+      <label>眠気に変化はありますか</label><br>
+      <select name="sleepiness_change" required>
+        <option value="">選択してください</option>
+        <option value="とても目が覚めた">とても目が覚めた</option>
+        <option value="どちらかといえば目が覚めた">どちらかといえば目が覚めた</option>
+        <option value="どちらかといえば目が覚めなかった">どちらかといえば目が覚めなかった</option>
+        <option value="全く変化はなかった">全く変化はなかった</option>
+      </select>
+    </div>
+
+
+    <div class="question">
+      <label>香りの強さはどれくらいでしたか</label><br>
+      <select name="odor_strength" required>
+        <option value="">選択してください</option>
+        <option value="0">臭気強度0：全く匂いを感じなかった</option>
+        <option value="1">臭気強度1: やっと匂いがわかる</option>
+        <option value="2">臭気強度2: なんの匂いか分かる弱い匂い</option>
+        <option value="3">臭気強度3: 楽に感知できる匂い</option>
+        <option value="4">臭気強度4: 強い匂い</option>
+        <option value="5">臭気強度5: 強烈な匂い</option>
+      </select>
+    </div>
+
+
+    <div class="question">
+      <label>集中できたと感じましたか</label><br>
+      <select name="concentration" required>
+        <option value="">選択してください</option>
+        <option value="とても集中できた">とても集中できた</option>
+        <option value="どちらかといえば集中できた">どちらかといえば集中できた</option>
+        <option value="どちらかといえば集中できなかった">どちらかといえば集中できなかった</option>
+        <option value="どちらかといえば全く集中できなかった">どちらかといえば全く集中できなかった</option>
+      </select>
+    </div>
+
+
+    <div class="question">
+      <label>香りをどのように感じました</label><br>
+      <select name="odor_feeling" required>
+        <option value="">選択してください</option>
+        <option value="とてもいい香りだと感じた">とてもいい香りだと感じた</option>
+        <option value="どちらかといえばいい香りだと感じた">どちらかといえばいい香りだと感じた</option>
+        <option value="どちらかといえば不快な香りだった">どちらかといえば不快な香りだった</option>
+        <option value="とても不快な香りだった">とても不快な香りだった</option>
+      </select>
+    </div>
+
+
+    <div class="question">
+      <label>鼻詰まりはありますか</label><br>
+      <select name="nasal_blockage" required>
+        <option value="">選択してください</option>
+        <option value="匂いがわからないほど詰まっている">匂いがわからないほど詰まっている</option>
+        <option value="匂いが感じにくいぐらい詰まっている">匂いが感じにくいぐらい詰まっている</option>
+        <option value="鼻は詰まっているが匂いは問題なく感じられる">鼻は詰まっているが匂いは問題なく感じられる</option>
+        <option value="鼻詰まりはない">鼻詰まりはない</option>
+      </select>
+    </div>
+
+
+    <div class="question">
+      <label>あなたのイニシャルを打ち込んでください</label><br>
+      <input type="text" name="initials" required>
+    </div>
+
+
+    <button type="submit">送信</button>
+  </form>
+  <div id="summary"></div>
+</div>
+
+
+<script>
+/* -----------------------------
+    SART設定
+--------------------------------*/
+const trialCount = 40;
+const noGoNumber = 3;
+const displayDuration = 900;
+const isi = 100;
+
+
+let currentTrial = 0;
+let showing = false;
+let startTime = 0;
+let results = [];
+
+
+function displayNextNumber() {
+  if(currentTrial >= trialCount){
+    endExperiment();
+    return;
+  }
+
+
+  currentTrial++;
+  const n = Math.floor(Math.random()*9)+1;
+  const numberDiv = document.getElementById("number");
+  numberDiv.textContent = n;
+  showing = true;
+  startTime = performance.now();
+
+
+  let trialData = {trial:currentTrial, number:n, pressed:false, rt:null, type:null};
+
+
+  function keyHandler(e){
+    if(!showing) return;
+    if(e.code==="Space"){
+      trialData.pressed = true;
+      trialData.rt = Math.round(performance.now() - startTime);
+      trialData.type = (n===noGoNumber)?"nogo-error":"go-correct";
+    }
+  }
+
+
+  document.addEventListener("keydown", keyHandler, {once:true});
+
+
+  setTimeout(()=>{
+    showing = false;
+    if(!trialData.pressed){
+      trialData.type = (n===noGoNumber)?"nogo-correct":"go-miss";
+    }
+    results.push(trialData);
+    numberDiv.textContent = "---";
+    setTimeout(displayNextNumber, isi);
+  }, displayDuration);
+}
+
+
+function endExperiment(){
+  document.getElementById("sart").classList.add("hidden");
+  document.getElementById("survey").classList.remove("hidden");
+
+
+  // 集計して画面に表示（正答率・ミス率）
+  const goTrials = results.filter(r=>r.number!==noGoNumber);
+  const noGoTrials = results.filter(r=>r.number===noGoNumber);
+  const goCorrect = goTrials.filter(r=>r.pressed).length;
+  const goMiss = goTrials.filter(r=>!r.pressed).length;
+  const noGoCorrect = noGoTrials.filter(r=>!r.pressed).length;
+  const noGoError = noGoTrials.filter(r=>r.pressed).length;
+  const goAccuracy = (goCorrect/goTrials.length*100).toFixed(1);
+  const noGoAccuracy = (noGoCorrect/noGoTrials.length*100).toFixed(1);
+  const goMissRate = (goMiss/goTrials.length*100).toFixed(1);
+  const noGoMissRate = (noGoError/noGoTrials.length*100).toFixed(1);
+  const allRTs = results.filter(r=>r.rt!=null).map(r=>r.rt);
+  const meanRT = allRTs.length>0?(allRTs.reduce((a,b)=>a+b,0)/allRTs.length).toFixed(1):0;
+
+
+  document.getElementById("summary").innerHTML = `
+    <p>Go正答率: ${goAccuracy}% / Goミス率: ${goMissRate}%</p>
+    <p>No-Go正答率: ${noGoAccuracy}% / No-Goミス率: ${noGoMissRate}%</p>
+    <p>平均反応時間: ${meanRT} ms</p>
+  `;
+}
+
+
+/* -----------------------------
+    スタートボタン
+--------------------------------*/
+document.getElementById("startBtn").onclick = ()=>{
+  currentTrial=0;
+  results=[];
+  displayNextNumber();
+  document.getElementById("startBtn").style.display="none";
+};
+
+
+/* -----------------------------
+    アンケート送信
+--------------------------------*/
+const scriptURL = 'https://script.google.com/a/macros/e.osakamanabi.jp/s/AKfycbzqgBV0o8B7yWWp9orHJy-ty7MIiUS_8e9ZjS7tZSDL88EjSd6zWYX4cl33wj_aSj8h3A/exec';
+const form = document.getElementById("survey-form");
+
+
+form.addEventListener("submit", e=>{
+  e.preventDefault();
+  const formData = new FormData(form);
+  const data = {};
+  formData.forEach((v,k)=>data[k]=v);
+  data['sart_results']=results;
+  data['noGoNumber']=noGoNumber; // Apps Scriptで集計用
+
+
+  fetch(scriptURL,{
+    method:'POST',
+    mode:'cors',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(data)
+  })
+  .then(res=>res.json())
+  .then(resp=>{
+    document.getElementById("summary").innerHTML += "<p>送信完了</p>";
+    form.reset();
+  })
+  .catch(err=>{
+    document.getElementById("summary").innerHTML += "<p>送信エラー: "+err+"</p>";
+  });
+});
+
+
+/* -----------------------------
+    CSV出力（詳細＋正答率・ミス率）
+--------------------------------*/
+function downloadCSV(){
+  const goTrials = results.filter(r=>r.number!==noGoNumber);
+  const noGoTrials = results.filter(r=>r.number===noGoNumber);
+  const goCorrect = goTrials.filter(r=>r.pressed).length;
+  const goMiss = goTrials.filter(r=>!r.pressed).length;
+  const noGoCorrect = noGoTrials.filter(r=>!r.pressed).length;
+  const noGoError = noGoTrials.filter(r=>r.pressed).length;
+  const goAccuracy = (goCorrect/goTrials.length*100).toFixed(1);
+  const noGoAccuracy = (noGoCorrect/noGoTrials.length*100).toFixed(1);
+  const goMissRate = (goMiss/goTrials.length*100).toFixed(1);
+  const noGoMissRate = (noGoError/noGoTrials.length*100).toFixed(1);
+  const allRTs = results.filter(r=>r.rt!=null).map(r=>r.rt);
+  const meanRT = allRTs.length>0?(allRTs.reduce((a,b)=>a+b,0)/allRTs.length).toFixed(1):0;
+
+
+  let csv = "trial,number,pressed,rt,type,goAccuracy,goMissRate,noGoAccuracy,noGoMissRate,meanRT\n";
+  results.forEach(r=>{
+    csv += `${r.trial},${r.number},${r.pressed},${r.rt || ""},${r.type},${goAccuracy},${goMissRate},${noGoAccuracy},${noGoMissRate},${meanRT}\n`;
+  });
+
+
+  const blob = new Blob([csv],{type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "sart_results.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+
+</body>
+</html>
