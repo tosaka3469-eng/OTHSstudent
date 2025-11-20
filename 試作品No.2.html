@@ -1,0 +1,233 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>SART Experiment</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin-top: 80px;
+        background: #f5f5f5;
+    }
+    #number {
+        font-size: 120px;
+        font-weight: bold;
+        margin: 40px;
+    }
+    #startBtn {
+        padding: 12px 25px;
+        font-size: 22px;
+    }
+    #summary {
+        margin-top: 40px;
+        font-size: 20px;
+    }
+</style>
+</head>
+
+
+<body>
+
+
+<h1>SART（Sustained Attention to Response Task）</h1>
+
+
+<div id="number">---</div>
+
+
+<button id="startBtn">開始する</button>
+
+
+<div id="summary"></div>
+
+
+<script>
+/* -----------------------------
+    設定パラメータ
+--------------------------------*/
+const trialCount = 40;       // 試行数（必要なら増やせる）
+const noGoNumber = 3;        // No-Go の数字
+const displayDuration = 900; // 数字の表示時間 (ms)
+const isi = 100;             // 数字間のインターバル (ms)
+
+
+/* -----------------------------
+    変数
+--------------------------------*/
+let currentTrial = 0;
+let showing = false;
+let startTime = 0;
+let results = []; // 試行ごとのデータを保存
+
+
+/* -----------------------------
+    数字の表示処理
+--------------------------------*/
+function displayNextNumber() {
+    if (currentTrial >= trialCount) {
+        endExperiment();
+        return;
+    }
+
+
+    currentTrial++;
+
+
+    // 1〜9のランダム数字
+    const n = Math.floor(Math.random() * 9) + 1;
+
+
+    const numberDiv = document.getElementById("number");
+    numberDiv.textContent = n;
+    showing = true;
+    startTime = performance.now();
+
+
+    // 反応記録用のデータを用意
+    let trialData = {
+        trial: currentTrial,
+        number: n,
+        pressed: false,
+        rt: null,
+        type: null  // "go-correct", "go-miss", "nogo-error", "nogo-correct"
+    };
+
+
+    // 数字表示中にキーを押したとき
+    function keyHandler(e) {
+        if (!showing) return;
+        if (e.code === "Space") {
+            trialData.pressed = true;
+            trialData.rt = Math.round(performance.now() - startTime);
+
+
+            if (n === noGoNumber) {
+                trialData.type = "nogo-error";
+            } else {
+                trialData.type = "go-correct";
+            }
+        }
+    }
+
+
+    document.addEventListener("keydown", keyHandler, { once: true });
+
+
+    // 表示を終了 → 次の数字へ
+    setTimeout(() => {
+        showing = false;
+
+
+        // 押してない場合の結果
+        if (!trialData.pressed) {
+            if (n === noGoNumber) {
+                trialData.type = "nogo-correct";
+            } else {
+                trialData.type = "go-miss";
+            }
+        }
+
+
+        results.push(trialData);
+
+
+        numberDiv.textContent = "---";
+
+
+        setTimeout(displayNextNumber, isi);
+    }, displayDuration);
+}
+
+
+/* -----------------------------
+    終了処理
+--------------------------------*/
+function endExperiment() {
+    document.getElementById("number").textContent = "終了";
+    document.getElementById("startBtn").style.display = "inline";
+
+
+    // 結果まとめ
+    const goCorrect = results.filter(r => r.type === "go-correct").length;
+    const goMiss    = results.filter(r => r.type === "go-miss").length;
+    const nogoError = results.filter(r => r.type === "nogo-error").length;
+    const nogoCorrect = results.filter(r => r.type === "nogo-correct").length;
+
+
+    document.getElementById("summary").innerHTML = `
+        <p><b>結果</b></p>
+        <p>Go 正答：${goCorrect}</p>
+        <p>Go ミス：${goMiss}</p>
+        <p>No-Go エラー：${nogoError}</p>
+        <p>No-Go 正答：${nogoCorrect}</p>
+        <button onclick="downloadCSV()">CSVをダウンロード</button>
+    `;
+}
+
+
+/* -----------------------------
+    CSV ダウンロード
+--------------------------------*/
+function downloadCSV() {
+    let csv = "trial,number,pressed,rt,type\n";
+    results.forEach(r => {
+        csv += `${r.trial},${r.number},${r.pressed},${r.rt},${r.type}\n`;
+    });
+
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sart_results.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+
+/* -----------------------------
+    スタートボタン
+--------------------------------*/
+document.getElementById("startBtn").onclick = () => {
+    currentTrial = 0;
+    results = [];
+    document.getElementById("summary").innerHTML = "";
+    document.getElementById("startBtn").style.display = "none";
+    displayNextNumber();
+};
+</script>
+
+
+<script>
+// 送信先URL（Apps ScriptのウェブアプリURL）
+const sheetURL = "https://script.google.com/a/macros/e.osakamanabi.jp/s/AKfycbzm-NEJBKpIiPBMJNB6qTh6UGmHqOofE1luxyccyaQErnIq7gBiDdKkfoZmtkTGY0oUtg/exec";
+
+
+// 送信関数
+function sendToGoogleSheet(participantID, number, rt, correct){
+  fetch(sheetURL, {
+    method: "POST",
+    body: JSON.stringify({
+      participantID: participantID,
+      number: number,
+      rt: rt,
+      correct: correct
+    }),
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error("送信エラー:", error));
+}
+
+
+// 例：SARTでボタン押した後に呼ぶ
+// sendToGoogleSheet("P001", 3, 512, true);
+</script>
+
+
+</body>
+</html>
